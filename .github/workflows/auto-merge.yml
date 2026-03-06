@@ -1,0 +1,165 @@
+name: Auto-Merge Copilot PRs
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  check_suite:
+    types:
+      - completed
+  workflow_run:
+    workflows:
+      - "*"
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    name: Auto-merge Copilot PRs when all checks pass
+    runs-on: ubuntu-latest
+    # Only run on PRs; workflow_run events do not have a pull_request context
+    if: >
+      github.event_name == 'pull_request' ||
+      github.event_name == 'check_suite'
+    steps:
+      - name: Fetch PR details
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.check_suite.pull_requests[0].number }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${PR_NUMBER:-}" ] || [ "$PR_NUMBER" = "null" ]; then
+            echo "No PR number available; skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+
+          # Retrieve the PR's author login
+          author=$(gh pr view "$PR_NUMBER" \
+            --repo "$REPO" \
+            --json author \
+            --jq '.author.login' 2>/dev/null || echo "")
+
+          echo "author=$author" >> "$GITHUB_OUTPUT"
+
+          # Check labels
+          labels=$(gh pr view "$PR_NUMBER" \
+            --repo "$REPO" \
+            --json labels \
+            --jq '[.labels[].name] | join(",")' 2>/dev/null || echo "")
+
+          echo "labels=$labels" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Enable auto-merge for Copilot PRs
+        if: >
+          steps.pr.outputs.skip != 'true' &&
+          (
+            steps.pr.outputs.author == 'Copilot' ||
+            steps.pr.outputs.author == 'copilot-swe-agent[bot]' ||
+            steps.pr.outputs.author == 'github-copilot[bot]' ||
+            contains(steps.pr.outputs.labels, 'agentic')
+          )
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
+        run: |
+          set -euo pipefail
+
+          echo "Enabling auto-merge for PR #$PR_NUMBER"
+
+          # Enable squash auto-merge; GitHub will merge once all required
+          # status checks pass and any required reviews are satisfied.
+          gh pr merge "$PR_NUMBER" \
+            --repo "$REPO" \
+            --squash \
+            --auto \
+            2>/dev/null && echo "Auto-merge enabled." \
+            || echo "Warning: could not enable auto-merge (may already be enabled or PR is not mergeable yet)."
+
+      - name: Approve Copilot PRs
+        if: >
+          steps.pr.outputs.skip != 'true' &&
+          (
+            steps.pr.outputs.author == 'Copilot' ||
+            steps.pr.outputs.author == 'copilot-swe-agent[bot]' ||
+            steps.pr.outputs.author == 'github-copilot[bot]' ||
+            contains(steps.pr.outputs.labels, 'agentic')
+          )
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
+        run: |
+          set -euo pipefail
+
+          echo "Approving PR #$PR_NUMBER"
+
+          gh pr review "$PR_NUMBER" \
+            --repo "$REPO" \
+            --approve \
+            --body "Automatically approved by the agentic auto-merge workflow." \
+            2>/dev/null && echo "PR approved." \
+            || echo "Warning: could not approve PR (may already be approved or approval from bot is restricted)."
+
+  handle-merge-conflict:
+    name: Comment on PRs with merge conflicts
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Check for merge conflicts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          mergeable=$(gh pr view "$PR_NUMBER" \
+            --repo "$REPO" \
+            --json mergeable \
+            --jq '.mergeable' 2>/dev/null || echo "UNKNOWN")
+
+          author=$(gh pr view "$PR_NUMBER" \
+            --repo "$REPO" \
+            --json author \
+            --jq '.author.login' 2>/dev/null || echo "")
+
+          if [ "$mergeable" = "CONFLICTING" ]; then
+            echo "PR #$PR_NUMBER has merge conflicts."
+
+            # Only comment once — check if we already left a conflict comment
+            existing=$(gh pr view "$PR_NUMBER" \
+              --repo "$REPO" \
+              --json comments \
+              --jq '[.comments[].body] | map(select(contains("merge conflict"))) | length' \
+              2>/dev/null || echo "0")
+
+            if [ "$existing" -eq 0 ]; then
+              gh pr comment "$PR_NUMBER" \
+                --repo "$REPO" \
+                --body "⚠️ **Merge conflict detected.**
+
+          @${author} — this PR has conflicts with the base branch. Please rebase on \`main\` to resolve them:
+
+          \`\`\`bash
+          git fetch origin
+          git rebase origin/main
+          # resolve conflicts, then:
+          git push --force-with-lease
+          \`\`\`"
+            fi
+          fi

@@ -1,0 +1,126 @@
+name: CI Monitor
+
+on:
+  workflow_run:
+    workflows:
+      - "*"
+    types:
+      - completed
+
+permissions:
+  contents: read
+  issues: write
+  actions: read
+
+jobs:
+  handle-failure:
+    name: Create issue for failed CI runs
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'failure'
+    steps:
+      - name: Create or update failure issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          WORKFLOW_ID: ${{ github.event.workflow_run.id }}
+          WORKFLOW_URL: ${{ github.event.workflow_run.html_url }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          short_sha="${HEAD_SHA:0:7}"
+          title="CI failure: \`$WORKFLOW_NAME\` on \`$HEAD_BRANCH\` ($short_sha)"
+
+          echo "Checking for existing issue: $title"
+
+          # Avoid duplicate issues for the same workflow on the same branch
+          existing=$(gh issue list \
+            --repo "$REPO" \
+            --label "ci-failure,agentic" \
+            --state open \
+            --json title,number \
+            --jq ".[] | select(.title | startswith(\"CI failure: \`$WORKFLOW_NAME\` on \`$HEAD_BRANCH\`\")) | .number" \
+            2>/dev/null | head -1 || true)
+
+          if [ -n "$existing" ]; then
+            echo "Updating existing issue #$existing with new run URL."
+            gh issue comment "$existing" \
+              --repo "$REPO" \
+              --body "🔄 **New failure** on commit \`$short_sha\`: $WORKFLOW_URL"
+            exit 0
+          fi
+
+          echo "Creating new failure issue."
+
+          gh issue create \
+            --repo "$REPO" \
+            --title "$title" \
+            --label "ci-failure,agentic" \
+            --assignee "Copilot" \
+            --body "## CI Failure Report
+
+          | Field | Value |
+          |-------|-------|
+          | Workflow | \`$WORKFLOW_NAME\` |
+          | Run ID | [$WORKFLOW_ID]($WORKFLOW_URL) |
+          | Branch | \`$HEAD_BRANCH\` |
+          | Commit | \`$short_sha\` |
+          | Time | $(date -u '+%Y-%m-%dT%H:%M:%SZ') |
+
+          ## Description
+          The workflow **$WORKFLOW_NAME** failed on branch \`$HEAD_BRANCH\` at commit \`$short_sha\`.
+
+          Please:
+          1. Review the [workflow run logs]($WORKFLOW_URL) to identify the root cause.
+          2. Push a fix to the relevant branch.
+          3. Verify the workflow passes on the next run.
+          4. Close this issue once the workflow is consistently green.
+
+          ## Acceptance Criteria
+          - [ ] Root cause identified and documented in a comment on this issue
+          - [ ] Fix pushed and the workflow passes on re-run
+          - [ ] No tests disabled or skipped to achieve a green build" \
+            2>/dev/null && echo "Issue created." \
+            || echo "Warning: could not create failure issue."
+
+  handle-success:
+    name: Close failure issue when CI recovers
+    runs-on: ubuntu-latest
+    if: >
+      github.event.workflow_run.conclusion == 'success' ||
+      github.event.workflow_run.conclusion == 'cancelled'
+    steps:
+      - name: Close open failure issues for this workflow and branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          WORKFLOW_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          set -euo pipefail
+
+          echo "Looking for open failure issues to close for '$WORKFLOW_NAME' on '$HEAD_BRANCH'."
+
+          open_issues=$(gh issue list \
+            --repo "$REPO" \
+            --label "ci-failure,agentic" \
+            --state open \
+            --json number,title \
+            --jq ".[] | select(.title | startswith(\"CI failure: \`$WORKFLOW_NAME\` on \`$HEAD_BRANCH\`\")) | .number" \
+            2>/dev/null || true)
+
+          if [ -z "$open_issues" ]; then
+            echo "No open failure issues to close."
+            exit 0
+          fi
+
+          for issue_number in $open_issues; do
+            echo "Closing issue #$issue_number — CI is now green."
+            gh issue close "$issue_number" \
+              --repo "$REPO" \
+              --comment "✅ Workflow **$WORKFLOW_NAME** on \`$HEAD_BRANCH\` is now passing. Closing this issue automatically. ([Run]($WORKFLOW_URL))" \
+              2>/dev/null || echo "Warning: could not close issue #$issue_number."
+          done
