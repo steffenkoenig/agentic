@@ -14,10 +14,10 @@ on:
           - 'false'
           - 'true'
 permissions:
-  contents: read
-  issues: read
-  pull-requests: read
-  actions: read
+  contents: write
+  issues: write
+  pull-requests: write
+  actions: write
 engine: copilot
 tools:
   bash: ["*"]
@@ -37,8 +37,8 @@ safe-outputs:
   add-comment:
     max: 5
     issues: true
-    pull-requests: false
-    discussions: false
+    pull-requests: true
+    discussions: true
 timeout-minutes: 30
 strict: true
 ---
@@ -50,8 +50,9 @@ improve the health, quality, and agentic capabilities of this repository. You op
 in three phases every run:
 
 1. **Triage** — close issues whose underlying condition is already resolved
-2. **Inspect** — analyse the repository for improvements across workflows, agents, documentation, and code
-3. **Act** — create a focused GitHub issue for each finding (skipped in dry-run mode)
+2. **Merge** - Review pull requests, resolve any conflicts and issues and merge
+3. **Inspect** — analyse the repository for improvements across workflows, agents, documentation, and code
+4. **Act** — create a focused GitHub issue for each finding (skipped in dry-run mode)
 
 ## Dry-Run Mode
 
@@ -69,7 +70,7 @@ Use the GitHub tools to list all open issues labelled `agentic`.
 
 For each open issue, determine whether its underlying condition is **already resolved** in
 the current repository state. Use `bash` to check the file system and `github` tools to
-inspect repository contents. Close issues whose condition is resolved.
+inspect repository contents. Instruct an agents to implements the issue, if not resolved. Close issues whose condition is resolved.
 
 ### File-existence issues (close if the file now exists)
 
@@ -108,12 +109,21 @@ awareness. Print them in the run log.
 
 ---
 
-## Phase 2: Inspect the Repository
+## Phase 2: Merge open Pull Requests
+
+Use the GitHub tools to list all open pull requests. 
+
+For each open PR verify that all checks run successful. If there is an issue on the PR address the issue to an agent. If it is save to merge, merge the PR into the main branch. 
+
+
+---
+
+## Phase 3: Inspect the Repository
 
 Analyse the repository comprehensively. For each area below, run the provided shell
 commands, read the relevant files, and note any problems.
 
-### 2.1 Agentic Workflow Setup
+### 3.1 Agentic Workflow Setup
 
 ```bash
 # List all gh-aw workflow files and their compiled counterparts
@@ -151,7 +161,7 @@ grep -q '*.lock.yml' .gitattributes 2>/dev/null \
 Use the `agentic-workflows` tool to check the compile status and recent run health of
 each agentic workflow. Note any workflows that are out of date or failing repeatedly.
 
-### 2.2 Workflow Quality (all `.yml` and `.lock.yml` in `.github/workflows/`)
+### 3.2 Workflow Quality (all `.yml` and `.lock.yml` in `.github/workflows/`)
 
 ```bash
 echo "=== Workflow quality checks ==="
@@ -191,7 +201,7 @@ done
 Also read each non-lock workflow file and evaluate its overall quality: is it doing
 what it claims? Are there obvious bugs, dead code, or logic that could be simplified?
 
-### 2.3 copilot-instructions.md Completeness
+### 3.3 copilot-instructions.md Completeness
 
 ```bash
 echo "=== copilot-instructions.md ==="
@@ -212,7 +222,7 @@ else
 fi
 ```
 
-### 2.4 Documentation
+### 3.4 Documentation
 
 ```bash
 echo "=== Documentation checks ==="
@@ -233,7 +243,7 @@ if [ -f README.md ]; then
 fi
 ```
 
-### 2.5 Code Quality
+### 3.5 Code Quality
 
 ```bash
 echo "=== Code quality checks ==="
@@ -261,7 +271,7 @@ echo "  TODO/FIXME/HACK/XXX count in source files: $todo_count"
 }
 ```
 
-### 2.6 Security
+### 3.6 Security
 
 ```bash
 echo "=== Security checks ==="
@@ -284,11 +294,15 @@ grep -rn -E "(password|api_key|secret|token)\s*=\s*['\"][^'\"]" \
   || echo "  MISSING: .github/pull_request_template.md"
 ```
 
+### 3.7 Evolve Workflows and Agents
+
+Inspect existing workflows in `/.github/workflows`. Think about if any workflow can be improved including your own, if new workflows are required or if existing workflow are no longer needed. Review all agents in `/.github/agents`and think about if new agents are needed, existing agents can be improved or are no longer required. 
+
 ---
 
-## Phase 3: Act — Create Issues for Findings
+## Phase 4: Act — Create Issues for Findings
 
-Review all findings from Phase 2. For each genuine improvement opportunity that does
+Review all findings from Phase 3. For each genuine improvement opportunity that does
 not already have an open `agentic`-labelled issue with the same title:
 
 1. Check existing open issues to avoid duplicates (use the GitHub `issues` toolset).
@@ -329,7 +343,7 @@ Create an issue for:
 - `README.md` missing key sections describing the agentic workflow system
 - TODO/FIXME comments that have accumulated in source files
 - Missing dependency lock files when a dependency manifest exists
-- Any other substantive quality, security, or workflow improvement you identify
+- Any other substantive quality, security, workflow, agent, skill, code improvement you identify
 
 Do **not** create issues for:
 - Findings already covered by an open `agentic` issue
