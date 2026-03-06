@@ -29,7 +29,6 @@ tools:
 safe-outputs:
   create-issue:
     labels: [agentic]
-    assignees: [Copilot]
     max: 10
   close-issue:
     required-labels: [agentic]
