@@ -116,6 +116,12 @@ It defines:
 
 ---
 
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
+---
+
 ## Triggering Self-Evolution Manually
 
 Go to **Actions → Self-Evolve → Run workflow** and click **Run workflow**.  
@@ -144,6 +150,7 @@ Repository
 │       └── copilot-setup-steps.yml     ← gh-aw environment setup for Copilot
 │
 ├── .gitattributes                      ← Marks .lock.yml as generated
+├── LICENSE                             ← MIT License
 └── README.md                           ← This file
 ```
 
