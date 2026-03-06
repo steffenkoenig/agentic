@@ -14,10 +14,10 @@ on:
           - 'false'
           - 'true'
 permissions:
-  contents: write
-  issues: write
-  pull-requests: write
-  actions: write
+  contents: read
+  issues: read
+  pull-requests: read
+  actions: read
 engine: copilot
 tools:
   bash: ["*"]
