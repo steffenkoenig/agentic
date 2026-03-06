@@ -23,7 +23,7 @@
 #
 # Periodically inspects the repository, closes resolved issues, and creates improvement issues for workflows, agents, documentation, and code quality
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"84394b98176e92dbd04681d3c6ab1e1719ff1c4cbfb19b964fa306011cb723c3","compiler_version":"v0.53.6"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"8a0738d3bdda1ceec5d5806901a7e7bbc8e96a77b313d72b8ecb18c3af68c454","compiler_version":"v0.53.6"}
 
 name: "Self-Evolve"
 "on":
@@ -1108,7 +1108,9 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+      discussions: write
       issues: write
+      pull-requests: write
     concurrency:
       group: "gh-aw-conclusion-self-evolve"
       cancel-in-progress: false
@@ -1206,7 +1208,9 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: read
+      discussions: write
       issues: write
+      pull-requests: write
     timeout-minutes: 15
     env:
       GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/self-evolve"
@@ -1265,3 +1269,4 @@ jobs:
           name: safe-output-items
           path: /tmp/safe-output-items.jsonl
           if-no-files-found: warn
+
