@@ -39,6 +39,8 @@ You are the autonomous agent responsible for the continuous improvement and self
 - Periodically review the self-evolve, auto-merge, and ci-monitor workflows themselves and improve them.
 - If a new category of improvement is identified that the self-evolve workflow doesn't currently handle, add it.
 - Update these instructions (`copilot-instructions.md`) when new patterns or rules should be enforced.
+- The `self-evolve` and `repository-quality-improver` workflows are **agentic workflows** built with [GitHub Agentic Workflows (gh-aw)](https://github.com/github/gh-aw). Each has a `.md` source file and a compiled `.lock.yml`. Always edit the `.md` source and recompile with `gh aw compile`; never edit `.lock.yml` directly.
+- When creating or modifying agentic workflows, follow the gh-aw security model: agent job permissions must be read-only and all GitHub write operations must go through `safe-outputs`.
 
 ### Security
 - Never commit secrets, tokens, or credentials.
@@ -49,13 +51,20 @@ You are the autonomous agent responsible for the continuous improvement and self
 
 ```
 .github/
+  agents/
+    agentic-workflows.agent.md  # gh-aw dispatcher agent for Copilot Chat
   workflows/
-    self-evolve.yml       # Scheduled self-inspection and issue creation
-    auto-merge.yml        # Auto-merges approved Copilot PRs
-    ci-monitor.yml        # Creates issues for CI failures
+    self-evolve.md              # AI self-inspection source (gh-aw)
+    self-evolve.lock.yml        # Compiled GitHub Actions YAML — do not edit
+    repository-quality-improver.md      # Daily quality analysis (gh-aw)
+    repository-quality-improver.lock.yml
+    auto-merge.yml              # Auto-merges approved Copilot PRs
+    ci-monitor.yml              # Creates issues for CI failures
+    copilot-setup-steps.yml     # gh-aw environment setup for Copilot
   ISSUE_TEMPLATE/
     agentic-improvement.yml
   copilot-instructions.md # This file — agent behaviour rules
+.gitattributes            # Marks .lock.yml files as linguist-generated
 README.md
 ```
 
