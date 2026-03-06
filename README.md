@@ -49,6 +49,34 @@ The repository continuously inspects itself, identifies improvements, and implem
 
 ---
 
+## Prerequisites
+
+### `COPILOT_GITHUB_TOKEN` Secret
+
+The agentic workflows (`self-evolve` and `repository-quality-improver`) require a
+**`COPILOT_GITHUB_TOKEN`** repository secret to authenticate with the GitHub Copilot API.
+Without a valid token the agent step will fail with:
+
+```
+Error: Authentication failed
+Your GitHub token may be invalid, expired, or lacking the required permissions.
+```
+
+**How to create and configure the secret:**
+
+1. Create a **GitHub Personal Access Token (Classic)** or **Fine-Grained PAT**:
+   - **Classic PAT** (simplest): Go to **Settings → Developer settings → Personal access tokens → Tokens (classic)** and generate a new token.  
+     No specific OAuth scopes are required — just having a Copilot-enabled account is sufficient.
+   - **Fine-Grained PAT**: Go to **Settings → Developer settings → Personal access tokens → Fine-grained tokens** and create a new token.  
+     Enable the **"Copilot Requests"** permission under *Account permissions*.
+2. Ensure the GitHub account that owns the token has an active **GitHub Copilot** subscription (Individual, Business, or Enterprise).
+3. Add the token as a repository secret named **`COPILOT_GITHUB_TOKEN`**:  
+   Go to **Settings → Secrets and variables → Actions → New repository secret**.
+
+**Important:** If the token expires or is rotated, update the secret before the next scheduled workflow run.
+
+---
+
 ## GitHub Agentic Workflows (gh-aw)
 
 The `self-evolve` and `repository-quality-improver` workflows are implemented using
