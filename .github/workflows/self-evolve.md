@@ -36,6 +36,7 @@ safe-outputs:
     max: 20
   add-comment:
     max: 5
+    target: "*"
     issues: true
     pull-requests: true
     discussions: true
@@ -350,3 +351,35 @@ Do **not** create issues for:
 - Cosmetic or trivial style nits with no functional impact
 - Files in `.vscode/` (editor config, not part of the repository)
 - Generated files (`.lock.yml`)
+
+---
+
+## No-Op Run Tracking
+
+After completing all phases, assess whether this was a **no-op run** — meaning:
+- Phase 1 closed zero issues
+- Phase 2 merged or addressed zero pull requests
+- Phase 4 created zero new issues
+
+If this was a no-op run, report it to the central tracking issue:
+
+1. Use the GitHub tools to search for an open issue titled exactly `[aw] No-Op Runs` with label `agentic`.
+2. If such an issue exists, emit an `add-comment` safe-output targeting that issue number with the message:
+   ```
+   **[Self-Evolve] No action to take** - No findings or pending items were identified in this run.
+   ```
+3. If no such issue exists, emit a `create-issue` safe-output to create it:
+   - **Title**: `[aw] No-Op Runs`
+   - **Body**:
+     ```
+     This issue tracks all no-op runs from agentic workflows in this repository. Each workflow run that completes with a no-op message (indicating no action was needed) posts a comment here.
+
+     ---
+
+     > This issue is automatically managed by GitHub Agentic Workflows. Do not close this issue manually.
+     >
+     > **No action to take** - Do not assign to an agent.
+     ```
+   - **Labels**: `agentic`
+
+If this was **not** a no-op run (at least one action was taken), skip this section entirely.

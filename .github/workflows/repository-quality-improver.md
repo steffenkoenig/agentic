@@ -23,6 +23,10 @@ safe-outputs:
     expires: 2d
     labels: [quality, automated-analysis]
     max: 1
+  add-comment:
+    max: 1
+    target: "*"
+    issues: true
 timeout-minutes: 20
 strict: true
 
@@ -398,3 +402,28 @@ A successful quality improvement run:
 - **Be Specific**: Provide exact file paths, line numbers, and code examples where relevant
 - **Be Actionable**: Every finding should lead to a concrete task
 - **Respect Timeout**: Complete within 20 minutes
+
+---
+
+## No-Op Run Tracking
+
+If Phase 2 did **not** emit a `create-issue` safe-output (because no actionable findings were identified), report this as a no-op run:
+
+1. Use the GitHub tools to search for an open issue titled exactly `[aw] No-Op Runs` with label `agentic`.
+2. If such an issue exists, emit an `add-comment` safe-output targeting that issue number with the message:
+   ```
+   **[Repository Quality Improver] No action to take** - No quality improvement findings were identified in this run.
+   ```
+3. If no such issue exists, emit a `create-issue` safe-output to create it:
+   - **Title**: `[aw] No-Op Runs`
+   - **Body**:
+     ```
+     This issue tracks all no-op runs from agentic workflows in this repository. Each workflow run that completes with a no-op message (indicating no action was needed) posts a comment here.
+
+     ---
+
+     > This issue is automatically managed by GitHub Agentic Workflows. Do not close this issue manually.
+     >
+     > **No action to take** - Do not assign to an agent.
+     ```
+   - **Labels**: `agentic`
