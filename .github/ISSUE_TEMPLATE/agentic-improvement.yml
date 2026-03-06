@@ -1,0 +1,50 @@
+name: "Agentic Improvement"
+description: "An improvement task created by the self-evolving agentic workflow."
+labels:
+  - agentic
+assignees:
+  - Copilot
+body:
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      description: What area does this improvement affect?
+      options:
+        - documentation
+        - testing
+        - workflow
+        - code quality
+        - dependency
+        - security
+        - performance
+        - other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What should change and why?
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      description: "Checklist of conditions that must be true for this issue to be closed."
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Relevant file paths, error messages, or background information.
+    validations:
+      required: false
