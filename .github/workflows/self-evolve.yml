@@ -26,6 +26,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Ensure required labels exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh label create "agentic" \
+            --repo "$REPO" \
+            --description "Applied to all issues and PRs created by the agentic system" \
+            --color "0075ca" \
+            2>/dev/null || true
+
       - name: Analyse repository state
         id: analysis
         env:
@@ -140,9 +152,10 @@ jobs:
           # Check 4 — TODO / FIXME comments in tracked files
           #           (excluding workflow files to avoid self-referential hits)
           # ------------------------------------------------------------------
+          todo_count=0
           todo_count=$(git grep -rn --count -E "TODO|FIXME|HACK|XXX" \
             -- '*.py' '*.js' '*.ts' '*.go' '*.sh' \
-            2>/dev/null | awk -F: '{sum+=$2} END{print sum+0}')
+            2>/dev/null | awk -F: '{sum+=$2} END{print sum+0}') || todo_count=0
 
           if [ "$todo_count" -gt 0 ]; then
             todo_files=$(git grep -rn -E "TODO|FIXME|HACK|XXX" \
