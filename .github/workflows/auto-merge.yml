@@ -20,10 +20,15 @@ permissions:
   contents: write
   pull-requests: write
 
+concurrency:
+  group: auto-merge-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: false
+
 jobs:
   auto-merge:
     name: Auto-merge Copilot PRs when all checks pass
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # Only run on PRs; workflow_run events do not have a pull_request context
     if: >
       github.event_name == 'pull_request' ||
@@ -118,6 +123,7 @@ jobs:
   handle-merge-conflict:
     name: Comment on PRs with merge conflicts
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: github.event_name == 'pull_request'
     steps:
       - name: Check for merge conflicts

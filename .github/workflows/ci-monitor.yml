@@ -16,6 +16,7 @@ jobs:
   handle-failure:
     name: Create issue for failed CI runs
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: github.event.workflow_run.conclusion == 'failure'
     steps:
       - name: Create or update failure issue
@@ -88,6 +89,7 @@ jobs:
   handle-success:
     name: Close failure issue when CI recovers
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: >
       github.event.workflow_run.conclusion == 'success' ||
       github.event.workflow_run.conclusion == 'cancelled'
